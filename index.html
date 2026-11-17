@@ -274,15 +274,12 @@ footer.foot{padding:60px 0 40px;margin-top:50px;border-top:1px solid var(--line)
     
     <div class="field">
       <label>出生地点</label>
-      <select id="inCity">
-        <option value="116.40" selected>北京</option>
-        <option value="121.47">上海</option>
-        <option value="113.26">广州</option>
-        <option value="104.07">成都</option>
-        <option value="126.63">哈尔滨</option>
-      </select>
+      <div style="display:flex; gap:8px;">
+        <select id="inProv" style="flex:1; padding:0 8px; font-size:14px;"></select>
+        <select id="inCity" style="flex:1; padding:0 8px; font-size:14px;"></select>
+      </div>
     </div>
-  </div>
+
   <div class="btn-row">
     <button class="analyze" id="btnGo">开始分析</button>
     <span class="err" id="errMsg"></span>
@@ -387,6 +384,45 @@ footer.foot{padding:60px 0 40px;margin-top:50px;border-top:1px solid var(--line)
 </div>
 
 <script>
+// === 全国主要省市经度数据库（用于计算真太阳时） ===
+const CITY_DATA = {
+  "北京": { "北京": 116.41 },
+  "天津": { "天津": 117.20 },
+  "上海": { "上海": 121.47 },
+  "重庆": { "重庆": 106.55 },
+  "河北": { "石家庄": 114.51, "唐山": 118.18, "保定": 115.46, "邯郸": 114.49, "秦皇岛": 119.60 },
+  "山西": { "太原": 112.55, "大同": 113.30, "临汾": 111.52 },
+  "内蒙古": { "呼和浩特": 111.75, "包头": 109.84, "鄂尔多斯": 109.78 },
+  "辽宁": { "沈阳": 123.43, "大连": 121.62, "鞍山": 122.99 },
+  "吉林": { "长春": 125.32, "吉林": 126.55, "延吉": 129.51 },
+  "黑龙江": { "哈尔滨": 126.53, "大庆": 125.10, "齐齐哈尔": 123.92 },
+  "江苏": { "南京": 118.80, "苏州": 120.62, "无锡": 120.30, "常州": 119.97, "徐州": 117.18, "南通": 120.89, "扬州": 119.41 },
+  "浙江": { "杭州": 120.15, "宁波": 121.55, "温州": 120.70, "绍兴": 120.58, "嘉兴": 120.76, "金华": 119.65 },
+  "安徽": { "合肥": 117.28, "芜湖": 118.43, "蚌埠": 117.39 },
+  "福建": { "福州": 119.30, "厦门": 118.09, "泉州": 118.58, "漳州": 117.65 },
+  "江西": { "南昌": 115.89, "赣州": 114.93, "九江": 115.99 },
+  "山东": { "济南": 117.00, "青岛": 120.38, "烟台": 121.39, "潍坊": 119.16, "临沂": 118.35 },
+  "河南": { "郑州": 113.63, "洛阳": 112.45, "开封": 114.31, "新乡": 113.93, "南阳": 112.53 },
+  "湖北": { "武汉": 114.30, "宜昌": 111.29, "襄阳": 112.14 },
+  "湖南": { "长沙": 112.94, "株洲": 113.13, "衡阳": 112.57, "岳阳": 113.13 },
+  "广东": { "广州": 113.26, "深圳": 114.06, "佛山": 113.12, "东莞": 113.75, "珠海": 113.58, "中山": 113.39, "惠州": 114.41 },
+  "广西": { "南宁": 108.37, "桂林": 110.29, "柳州": 109.42 },
+  "海南": { "海口": 110.20, "三亚": 109.51 },
+  "四川": { "成都": 104.07, "绵阳": 104.68, "乐山": 103.77, "宜宾": 104.63, "南充": 106.08 },
+  "贵州": { "贵阳": 106.63, "遵义": 106.93 },
+  "云南": { "昆明": 102.83, "大理": 100.16, "丽江": 100.23, "曲靖": 103.80 },
+  "西藏": { "拉萨": 91.11, "日喀则": 88.88 },
+  "陕西": { "西安": 108.94, "咸阳": 108.71, "宝鸡": 107.24, "汉中": 107.02 },
+  "甘肃": { "兰州": 103.83, "天水": 105.72 },
+  "青海": { "西宁": 101.78 },
+  "宁夏": { "银川": 106.23 },
+  "新疆": { "乌鲁木齐": 87.62, "喀什": 75.99, "伊宁": 81.32 },
+  "台湾": { "台北": 121.52, "高雄": 120.31, "台中": 120.68 },
+  "香港": { "香港": 114.17 },
+  "澳门": { "澳门": 113.55 },
+  "海外": { "东京": 139.69, "首尔": 126.98, "新加坡": 103.85, "纽约": -74.01, "洛杉矶": -118.24, "伦敦": -0.13, "悉尼": 151.21 }
+};
+
 // ⚠️ 在这里填入您 Flask 后端部署的 API 完整地址（如阿里云 FC URL 或服务器域名）
 const BACKEND_URL = "https://bazi-core-hwvsrezois.cn-hangzhou.fcapp.run"; 
 const WORKER_URL = "https://bazi-proxy-tsplpallqn.cn-hangzhou.fcapp.run"; 
@@ -434,7 +470,9 @@ function computeAll(){
   var isTimeUnknown = document.getElementById("inTimeUnknown").checked;
   var tv=isTimeUnknown ? "12:00" : (document.getElementById("inTime").value||"12:00");
   var gender=parseInt(document.getElementById("inGender").value,10);
-  var lon=parseFloat(document.getElementById("inCity").value);
+var prov = document.getElementById("inProv").value;
+var city = document.getElementById("inCity").value;
+var lon = CITY_DATA[prov][city];
   var parts=dv.split("-"),y=+parts[0],m=+parts[1],d=+parts[2];
   var tp=tv.split(":"),h=+tp[0],mi=+(tp[1]||0);
 
@@ -1376,6 +1414,44 @@ document.getElementById("returnToInput").addEventListener("click", function(){
   document.getElementById("entryView").hidden=false;
   window.scrollTo({top:0,behavior:"smooth"});
 });
+
+// === 初始化省市联动下拉框 ===
+function initCitySelects() {
+  var provSel = document.getElementById("inProv");
+  var citySel = document.getElementById("inCity");
+  
+  // 填充省份
+  for (var prov in CITY_DATA) {
+    var opt = document.createElement("option");
+    opt.value = prov;
+    opt.textContent = prov;
+    provSel.appendChild(opt);
+  }
+  
+  // 更新城市列表的函数
+  function updateCities() {
+    citySel.innerHTML = "";
+    var currentProv = provSel.value;
+    var cities = CITY_DATA[currentProv];
+    for (var city in cities) {
+      var opt = document.createElement("option");
+      opt.value = city;
+      opt.textContent = city;
+      citySel.appendChild(opt);
+    }
+  }
+  
+  // 监听省份变化
+  provSel.addEventListener("change", updateCities);
+  
+  // 默认选中北京
+  provSel.value = "北京";
+  updateCities();
+}
+
+// 页面加载时执行
+document.addEventListener("DOMContentLoaded", initCitySelects);
+
 </script>
 </body>
 </html>
