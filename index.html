@@ -17,10 +17,16 @@ body{background:var(--paper);color:var(--ink);font-family:-apple-system,BlinkMac
 .prose{font-family:"Songti SC","STSong","Noto Serif CJK SC","SimSun",serif;}
 .wrap{max-width:1120px;margin:0 auto;padding:0 22px;}
 
-header.top{padding:56px 0 30px;border-bottom:1px solid var(--line);}
+header.top{padding:56px 0 30px;border-bottom:1px solid var(--line);text-align:center;}
 header.top .kicker{font-size:12px;letter-spacing:.42em;color:var(--ink3);text-transform:uppercase;margin-bottom:14px;}
 header.top h1{font-family:"Songti SC","STSong","Noto Serif CJK SC",serif;font-size:clamp(30px,5.4vw,44px);font-weight:700;letter-spacing:.12em;}
-header.top p.sub{margin-top:14px;color:var(--ink2);font-size:15px;max-width:620px;}
+header.top p.sub{margin:14px auto 0;color:var(--ink2);font-size:15px;max-width:620px;}
+
+.loading-view{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;background:var(--paper);}
+.loading-view[hidden]{display:none;}
+.analysis-message{font-family:"Songti SC","STSong",serif;font-size:18px;letter-spacing:.12em;color:var(--ink);}
+.return-button{height:40px;margin:22px 0 18px;padding:0 16px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--ink2);font:inherit;cursor:pointer;}
+.return-button:hover{border-color:var(--ink2);color:var(--ink);}
 
 .panel{background:var(--paper2);border:1px solid var(--line);border-radius:10px;padding:26px 26px 22px;margin:34px 0 0;}
 .panel h2{font-size:13px;letter-spacing:.35em;color:var(--ink2);font-weight:600;margin-bottom:20px;}
@@ -233,6 +239,7 @@ footer.foot{padding:60px 0 40px;margin-top:50px;border-top:1px solid var(--line)
 <body>
 <div class="wrap">
 
+<div id="entryView">
 <header class="top">
   <div class="kicker">Bazi · Deep Reading</div>
   <h1>八字深度分析</h1>
@@ -281,8 +288,14 @@ footer.foot{padding:60px 0 40px;margin-top:50px;border-top:1px solid var(--line)
     <span class="err" id="errMsg"></span>
   </div>
 </section>
+</div>
+
+<div class="loading-view" id="loadingView" hidden role="status" aria-live="polite">
+  <div class="analysis-message">宗师正在推演......</div>
+</div>
 
 <main id="result" hidden>
+  <button class="return-button" id="returnToInput" type="button">返回修改</button>
   
   <div class="bazi-hero" id="baziHero">
     <div class="hero-content">
@@ -368,7 +381,7 @@ footer.foot{padding:60px 0 40px;margin-top:50px;border-top:1px solid var(--line)
   </section>
 </main>
 
-<footer class="foot">
+<footer class="foot" id="pageFooter" hidden>
   判读参考《子平真诠》《滴天髓》《穷通宝鉴》。本页面不构成科学预测或决策依据。
 </footer>
 </div>
@@ -668,7 +681,7 @@ async function fetchDeepSeek(c, backendData){
 【最终判定阈值】：
 - 总分 >= 80：极强
 - 总分 >= 55：偏强
-- 总分 >= 40：中和
+- 总分 >= 45：中和
 - 总分 >= 25：偏弱
 - 总分 < 25：极弱
 （注：你必须在内心严格演算这套分数，后端给你的得分只作为参考。算完后，把最终结论填入 strength）
@@ -690,6 +703,12 @@ async function fetchDeepSeek(c, backendData){
    - **若身偏弱/极弱**：必须用【印星（生我）】或【比劫（同我）】生扶，绝不可用财、官、食伤去克泄耗，否则日主会被耗死。
    - **若身偏强/极强**：必须用【食伤（我生）泄秀】、【财星（我克）耗身】或【官杀（克我）制身】。绝不可再补印星和比劫。
 4. 【致命排雷（财生杀）】：如果原局七杀（克我）极旺，或者七杀为忌神，绝对禁止将【财星】作为主用神！因为财会生杀，等于给土匪送钱，反噬日主。
+
+【🔥🔥🔥 五行生克绝对定义（不可违背的底层逻辑）】
+在所有的正文描述和推演中，绝不允许出现任何五行相生相克的语病！必须严格遵循以下方向：
+1. 【相生】：金生水，水生木，木生火，火生土，土生金。（绝不可说“木生水”、“火生木”等倒反天罡的话！）
+2. 【相克】：金克木，木克土，土克水，水克火，火克金。
+3. 【六亲对应】：生我者为印星，我生者为食伤，克我者为官杀，我克者为财星，同我者为比劫。任何生克作用必须明确落在十神关系上，绝不可含糊其辞。
 
 【🔥🔥🔥 最高宪法：旺衰与喜忌的绝对绑定法则（不可违背，违者废稿）】
 在决定了最终的旺衰（极强、偏强、中和、偏弱、极弱）之后，你的用神、喜神、忌神必须严格服从以下底层逻辑，绝不允许出现“身强喜印比”、“身弱喜财官”的荒谬结论！
@@ -947,22 +966,36 @@ function renderAiResult(res, c, backendData){
   document.getElementById("elementBar").innerHTML = ALL_EL.map(e => `<i style="width:${wMap[e]}%;background:${ELEMENT_COLOR[e]}"></i>`).join("");
   document.getElementById("elementLegend").innerHTML = ALL_EL.map(e => `<span><b style="background:${ELEMENT_COLOR[e]}"></b>${e} 约${wMap[e]}%</span>`).join("");
 
- // ==========================================
-  // 【刻度条渲染】：完全按照大模型的旺衰结论来画指针
+// ==========================================
+  // 【刻度条渲染】：双轨制判定（一致用分数，不一致用固定档位）
   // ==========================================
   var strengthPct = 50; // 默认中和
-  if (strengthText.indexOf("极弱") > -1) {
-      strengthPct = 10;
-  } else if (strengthText.indexOf("偏弱") > -1) {
-      strengthPct = 30;
-  } else if (strengthText.indexOf("极强") > -1 || strengthText.indexOf("极旺") > -1) {
-      strengthPct = 90;
-  } else if (strengthText.indexOf("偏强") > -1 || strengthText.indexOf("偏旺") > -1) {
-      strengthPct = 70;
+  
+  var hasBackend = backendData && backendData.siwang_score !== undefined && backendData.strength;
+  
+  // 检查前后端结论是否一致（去掉首尾空格防止误判）
+  var isMatch = hasBackend && (strengthText.trim() === backendData.strength.trim());
+
+  if (isMatch) {
+      // 情况A：大模型认可后端结论，直接使用后端精准分数（如75分就是75%）
+      // 限制在 3% - 97% 之间，防止两端圆角遮挡指针
+      strengthPct = Math.max(3, Math.min(97, backendData.siwang_score));
   } else {
-      strengthPct = 50; // 中和
+      // 情况B：大模型推翻了后端结论（或者没有后端数据），走五档固定值
+      if (strengthText.indexOf("极弱") > -1) {
+          strengthPct = 10;
+      } else if (strengthText.indexOf("偏弱") > -1) {
+          strengthPct = 30;
+      } else if (strengthText.indexOf("极强") > -1 || strengthText.indexOf("极旺") > -1) {
+          strengthPct = 90;
+      } else if (strengthText.indexOf("偏强") > -1 || strengthText.indexOf("偏旺") > -1) {
+          strengthPct = 70;
+      } else {
+          strengthPct = 50; // 中和
+      }
   }
 
+  // 渲染 HTML（注：你原代码里这里有一大段重复的赋值，我顺便帮你精简了）
   document.getElementById("strengthMeterBox").innerHTML =
     '<div class="strength-meter" style="padding-bottom: 18px;">'
     + '<div class="sm-labels"><span>极弱</span><span>中和</span><span>极旺</span></div>'
@@ -1292,12 +1325,15 @@ document.getElementById("btnGo").addEventListener("click", async function(){
   try{
     if(typeof Solar==="undefined") throw new Error("排盘库未加载，请检查 lunar.js");
     btn.disabled=true; err.textContent="";
+    document.getElementById("entryView").hidden=true;
+    document.getElementById("result").hidden=true;
+    document.getElementById("pageFooter").hidden=true;
+    document.getElementById("loadingView").hidden=false;
     
     // 1. 前端立即排盘渲染
     CUR = computeAll();
     renderChartTable(CUR);
-    
-    document.getElementById("result").hidden=false;
+
     document.getElementById("heroText").textContent = "宗师正在凝练命局定语...";
     document.getElementById("aiLoading").style.display="block";
     document.getElementById("keyGrid").innerHTML = '<div class="key-item" style="grid-column: span 4; text-align:center; color:var(--ink3);">宗师正在推演...</div>';
@@ -1309,26 +1345,36 @@ document.getElementById("btnGo").addEventListener("click", async function(){
     document.getElementById("strengthMeterBox").innerHTML = "";
     document.getElementById("godBarsBox").innerHTML = "";
     
-    document.getElementById("result").scrollIntoView({behavior:"smooth"});
-
     // 2. 请求后端规则引擎（获取精准旺衰、格局、调候）
     var backendData = await fetchBackendRules(CUR);
 
     // 3. 把后端的定论发给大模型，生成有血有肉的分析
     var aiData = await fetchDeepSeek(CUR, backendData);
     
-    document.getElementById("aiLoading").style.display="none";
-    
     // 4. 渲染结果（优先采用后端的严谨数据覆盖页面）
     renderAiResult(aiData, CUR, backendData);
     drawCurve();
+    document.getElementById("aiLoading").style.display="none";
+    document.getElementById("result").hidden=false;
+    document.getElementById("pageFooter").hidden=false;
+    document.getElementById("loadingView").hidden=true;
+    document.getElementById("result").scrollIntoView({behavior:"smooth"});
 
   }catch(ex){
     err.textContent = ex.message;
     document.getElementById("aiLoading").style.display="none";
+    document.getElementById("loadingView").hidden=true;
+    document.getElementById("entryView").hidden=false;
   }finally{
     btn.disabled=false;
   }
+});
+
+document.getElementById("returnToInput").addEventListener("click", function(){
+  document.getElementById("result").hidden=true;
+  document.getElementById("pageFooter").hidden=true;
+  document.getElementById("entryView").hidden=false;
+  window.scrollTo({top:0,behavior:"smooth"});
 });
 </script>
 </body>
